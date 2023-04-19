@@ -1,33 +1,36 @@
 # -*- coding: utf-8 -*-
 module NyanCat
   module Common
-    ESC      = "\e["
-    NND      = "#{ESC}0m"
-    PASS     = '='
-    PASS_ARY = ['-', '_']
-    FAIL     = '*'
-    ERROR    = '!'
-    PENDING  = '+'
+    ESC = "\e["
+    NND = "#{ESC}0m"
+    PASS = "="
+    PASS_ARY = %w[- _]
+    FAIL = "*"
+    ERROR = "!"
+    PENDING = "+"
 
-    VT100_CODES =
-      {
-      :black   => 30,
-      :red     => 31,
-      :green   => 32,
-      :yellow  => 33,
-      :blue    => 34,
-      :magenta => 35,
-      :cyan    => 36,
-      :white   => 37,
-      :bold    => 1,
+    VT100_CODES = {
+      black: 30,
+      red: 31,
+      green: 32,
+      yellow: 33,
+      blue: 34,
+      magenta: 35,
+      cyan: 36,
+      white: 37,
+      bold: 1
     }
 
     VT100_CODE_VALUES = VT100_CODES.invert
 
     def self.included(base)
       base.class_eval do
-        attr_reader :current, :example_results, :color_index, :pending_count, :failure_count,
-        :example_count
+        attr_reader :current,
+                    :example_results,
+                    :color_index,
+                    :pending_count,
+                    :failure_count,
+                    :example_count
       end
     end
 
@@ -47,13 +50,13 @@ module NyanCat
     # @return [String] Nyan Cat
     def nyan_cat
       if self.failed_or_pending? && self.finished?
-        ascii_cat('x')[@color_index%2].join("\n") #'~|_(x.x)'
+        ascii_cat("x")[@color_index % 2].join("\n") #'~|_(x.x)'
       elsif self.failed_or_pending?
-        ascii_cat('o')[@color_index%2].join("\n") #'~|_(o.o)'
+        ascii_cat("o")[@color_index % 2].join("\n") #'~|_(o.o)'
       elsif self.finished?
-        ascii_cat('-')[@color_index%2].join("\n") # '~|_(-.-)'
+        ascii_cat("-")[@color_index % 2].join("\n") # '~|_(-.-)'
       else
-        ascii_cat('^')[@color_index%2].join("\n") # '~|_(^.^)'
+        ascii_cat("^")[@color_index % 2].join("\n") # '~|_(^.^)'
       end
     end
 
@@ -66,10 +69,13 @@ module NyanCat
 
     def progress_lines
       [
-        nyan_trail.split("\n").each_with_index.inject([]) do |result, (trail, index)|
-          value = "#{scoreboard[index]}/#{@example_count}:"
-          result << format("%s %s", value, trail)
-        end
+        nyan_trail
+          .split("\n")
+          .each_with_index
+          .inject([]) do |result, (trail, index)|
+            value = "#{scoreboard[index]}/#{@example_count}:"
+            result << format("%s %s", value, trail)
+          end
       ].flatten
     end
 
@@ -101,7 +107,7 @@ module NyanCat
     #
     # @return [Fixnum]
     def terminal_width
-      if defined? JRUBY_VERSION
+      if defined?(JRUBY_VERSION)
         default_width = 80
       else
         default_width = `stty size`.split.map { |x| x.to_i }.reverse.first - 1
@@ -117,21 +123,34 @@ module NyanCat
       @pending_examples ||= []
       @failed_examples ||= []
       padding = @example_count.to_s.length
-      [ @current.to_s.rjust(padding),
-        success_color((@current - @pending_examples.size - @failed_examples.size).to_s.rjust(padding)),
+      [
+        @current.to_s.rjust(padding),
+        success_color(
+          (
+            @current - @pending_examples.size - @failed_examples.size
+          ).to_s.rjust(padding)
+        ),
         pending_color(@pending_examples.size.to_s.rjust(padding)),
-        failure_color(@failed_examples.size.to_s.rjust(padding)) ]
+        failure_color(@failed_examples.size.to_s.rjust(padding))
+      ]
     end
 
     # Creates a rainbow trail
     #
     # @return [String] the sprintf format of the Nyan cat
     def nyan_trail
-      marks = @example_results.each_with_index.map{ |mark, i| highlight(mark) * example_width(i) }
-      marks.shift(current_width - terminal_width) if current_width >= terminal_width
-      nyan_cat.split("\n").each_with_index.map do |line, index|
-        format("%s#{line}", marks.join)
-      end.join("\n")
+      marks =
+        @example_results.each_with_index.map do |mark, i|
+          highlight(mark) * example_width(i)
+        end
+      if current_width >= terminal_width
+        marks.shift(current_width - terminal_width)
+      end
+      nyan_cat
+        .split("\n")
+        .each_with_index
+        .map { |line, index| format("%s#{line}", marks.join) }
+        .join("\n")
     end
 
     # Times a mark has to be repeated
@@ -143,17 +162,11 @@ module NyanCat
     #
     # @param o [String] Nyan's eye
     # @return [Array] Nyan cats
-    def ascii_cat(o = '^')
-      [[ "_,------,   ",
-          "_|  /\\_/\\ ",
-          "~|_( #{o} .#{o})  ",
-          " \"\"  \"\" "
-        ],
-        [ "_,------,   ",
-          "_|   /\\_/\\",
-          "^|__( #{o} .#{o}) ",
-          " \" \"  \" \""
-        ]]
+    def ascii_cat(o = "^")
+      [
+        ["_,------,   ", "_|  NC  |__", "_|------|__/\\", " (o)   (o) "],
+        ["_,------,   ", "_|  NC  |__", "_|------|__/\\", " (o)   (o) "]
+      ]
     end
 
     # Colorizes the string with raindow colors of the rainbow
@@ -170,14 +183,15 @@ module NyanCat
     #
     # @return [Array]
     def colors
-      @colors ||= (0...(6 * 7)).map do |n|
-        pi_3 = Math::PI / 3
-        n *= 1.0 / 6
-        r  = (3 * Math.sin(n           ) + 3).to_i
-        g  = (3 * Math.sin(n + 2 * pi_3) + 3).to_i
-        b  = (3 * Math.sin(n + 4 * pi_3) + 3).to_i
-        36 * r + 6 * g + b + 16
-      end
+      @colors ||=
+        (0...(6 * 7)).map do |n|
+          pi_3 = Math::PI / 3
+          n *= 1.0 / 6
+          r = (3 * Math.sin(n) + 3).to_i
+          g = (3 * Math.sin(n + 2 * pi_3) + 3).to_i
+          b = (3 * Math.sin(n + 4 * pi_3) + 3).to_i
+          36 * r + 6 * g + b + 16
+        end
     end
 
     # Determines how to color the example.  If pass, it is rainbowified, otherwise
@@ -186,11 +200,16 @@ module NyanCat
     # @return [String]
     def highlight(mark = PASS)
       case mark
-      when PASS; rainbowify PASS_ARY[@color_index%2]
-      when FAIL; "\e[31m#{mark}\e[0m"
-      when ERROR; "\e[33m#{mark}\e[0m"
-      when PENDING; "\e[33m#{mark}\e[0m"
-      else mark
+      when PASS
+        rainbowify PASS_ARY[@color_index % 2]
+      when FAIL
+        "\e[31m#{mark}\e[0m"
+      when ERROR
+        "\e[33m#{mark}\e[0m"
+      when PENDING
+        "\e[33m#{mark}\e[0m"
+      else
+        mark
       end
     end
 
@@ -198,15 +217,16 @@ module NyanCat
     #
     # @return [String]
     def format_duration(duration)
-      seconds = ((duration % 60) * 100.0).round / 100.0   # 1.8.7 safe .round(2)
-      seconds = seconds.to_i if seconds.to_i == seconds   # drop that zero if it's not needed
+      seconds = ((duration % 60) * 100.0).round / 100.0 # 1.8.7 safe .round(2)
+      seconds = seconds.to_i if seconds.to_i == seconds # drop that zero if it's not needed
 
       message = "#{seconds} second#{seconds == 1 ? "" : "s"}"
-      message = "#{(duration / 60).to_i} minute#{(duration / 60).to_i == 1 ? "" : "s"} and " + message if duration >= 60
+      message =
+        "#{(duration / 60).to_i} minute#{(duration / 60).to_i == 1 ? "" : "s"} and " +
+          message if duration >= 60
 
       message
     end
-
 
     # Determines if the specs have completed
     #
@@ -245,9 +265,7 @@ module NyanCat
       if VT100_CODE_VALUES.has_key?(code_or_symbol)
         code_or_symbol
       else
-        VT100_CODES.fetch(code_or_symbol) do
-          console_code_for(:white)
-        end
+        VT100_CODES.fetch(code_or_symbol) { console_code_for(:white) }
       end
     end
 
@@ -258,6 +276,5 @@ module NyanCat
         text
       end
     end
-
   end
 end
